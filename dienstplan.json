@@ -1,0 +1,22 @@
+{
+  "company": "Dein Betrieb",
+  "employees": [
+    { "id": "e1", "name": "Anna Muster", "pin": "1234" },
+    { "id": "e2", "name": "Julian K.", "pin": "5678" },
+    { "id": "e3", "name": "Sara Beispiel", "pin": "9012" }
+  ],
+  "weeks": [
+    {
+      "label": "KW 40 · 28.09. – 04.10.",
+      "days": [
+        { "label": "Mo 28.09", "shifts": { "e1": [{"start":"06:00","end":"14:00","bereich":"Laden"}], "e2": [{"start":"07:00","end":"15:30","bereich":"Café"}] } },
+        { "label": "Di 29.09", "shifts": { "e1": [{"start":"06:00","end":"14:00","bereich":"Laden"}], "e3": [{"start":"11:00","end":"19:00","bereich":"Küche"}] } },
+        { "label": "Mi 30.09", "shifts": { "e2": [{"start":"07:00","end":"15:30","bereich":"Café"}], "e3": [{"start":"11:00","end":"19:00","bereich":"Küche"}] } },
+        { "label": "Do 01.10", "shifts": { "e1": [{"start":"06:00","end":"14:00","bereich":"Laden"}] } },
+        { "label": "Fr 02.10", "shifts": { "e1": [{"start":"06:00","end":"14:00","bereich":"Laden"}], "e2": [{"start":"07:00","end":"15:30","bereich":"Café"}], "e3": [{"start":"11:00","end":"19:00","bereich":"Küche"}] } },
+        { "label": "Sa 03.10", "shifts": { "e2": [{"start":"07:00","end":"13:00","bereich":"Café"}] } },
+        { "label": "So 04.10", "shifts": {} }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dienstplan</title>
+<style>
+  :root{
+    --bg:#f5f6fa; --card:#fff; --line:#e8eaf2; --ink:#1c2433; --ink2:#6b7689;
+    --blue:#0ca678; --blue-d:#0a8a63; --blue-bg:#e6f7f0; --red:#e5484d;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); font-size:15px; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:520px; margin:0 auto; padding:16px;}
+
+  /* --- Login --- */
+  #login{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
+  #login .box{background:var(--card); border-radius:16px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 4px 24px rgba(16,24,40,.08); text-align:center;}
+  #login h1{font-size:19px; margin-bottom:6px;}
+  #login p{color:var(--ink2); font-size:13.5px; margin-bottom:20px;}
+  #pin{width:100%; font-size:26px; letter-spacing:8px; text-align:center; padding:14px; border:2px solid var(--line); border-radius:10px; margin-bottom:14px;}
+  #pin:focus{outline:none; border-color:var(--blue);}
+  #loginBtn{width:100%; background:var(--blue); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer;}
+  #loginBtn:active{background:var(--blue-d);}
+  #loginErr{color:var(--red); font-size:13px; margin-top:10px; min-height:16px;}
+
+  /* --- Header --- */
+  header{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  header h1{font-size:17px;}
+  header .who{font-size:12.5px; color:var(--ink2);}
+  #logout{background:none; border:none; color:var(--ink2); font-size:13px; text-decoration:underline; cursor:pointer;}
+
+  /* --- Week switch --- */
+  .weeknav{display:flex; align-items:center; justify-content:space-between; background:var(--card); border-radius:12px; padding:10px 12px; margin-bottom:12px; box-shadow:0 1px 2px rgba(16,24,40,.05);}
+  .weeknav button{background:var(--blue-bg); color:var(--blue-d); border:none; border-radius:8px; padding:8px 12px; font-weight:600; font-size:13px; cursor:pointer;}
+  .weeknav button:disabled{opacity:.35; cursor:default;}
+  .weeknav .lbl{font-weight:700; font-size:13.5px;}
+
+  /* --- Day tabs --- */
+  .daytabs{display:flex; gap:4px; overflow-x:auto; margin-bottom:14px; padding-bottom:2px;}
+  .daytabs button{flex:none; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 12px; font-size:12.5px; font-weight:600; color:var(--ink2); cursor:pointer;}
+  .daytabs button.active{background:var(--blue); color:#fff; border-color:var(--blue);}
+
+  /* --- Shift cards --- */
+  .emp-card{background:var(--card); border-radius:12px; padding:12px 14px; margin-bottom:8px; box-shadow:0 1px 2px rgba(16,24,40,.05); display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .emp-card .name{font-weight:700; font-size:14px;}
+  .emp-card .shift{font-size:13px; color:var(--ink2); text-align:right;}
+  .emp-card .shift b{color:var(--ink);}
+  .emp-card.free .shift{color:var(--ink2); font-style:italic;}
+  .tag-area{display:inline-block; font-size:11px; background:var(--blue-bg); color:var(--blue-d); border-radius:6px; padding:1px 6px; margin-left:6px;}
+
+  #err{text-align:center; color:var(--ink2); padding:40px 20px; font-size:14px;}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="box">
+    <h1>Dienstplan</h1>
+    <p>Bitte gib deinen persönlichen PIN ein</p>
+    <input id="pin" type="tel" inputmode="numeric" maxlength="8" placeholder="••••" autofocus>
+    <button id="loginBtn" onclick="tryLogin()">Anmelden</button>
+    <div id="loginErr"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <div>
+      <h1 id="companyName">Dienstplan</h1>
+      <div class="who" id="whoAmI"></div>
+    </div>
+    <button id="logout" onclick="logout()">Abmelden</button>
+  </header>
+
+  <div class="weeknav">
+    <button id="prevWeek" onclick="changeWeek(-1)">‹ Vorherige</button>
+    <div class="lbl" id="weekLabel">Woche</div>
+    <button id="nextWeek" onclick="changeWeek(1)">Nächste ›</button>
+  </div>
+
+  <div class="daytabs" id="daytabs"></div>
+  <div id="dayContent"></div>
+</div>
+
+<div id="err" style="display:none">Plan konnte nicht geladen werden.</div>
+
+<script>
+const LS_KEY = 'dienstplan-pin';
+let data = null;
+let weekIdx = 0;
+let dayIdx = 0;
+
+fetch('dienstplan.json?_=' + Date.now())
+  .then(r => { if(!r.ok) throw 0; return r.json(); })
+  .then(d => {
+    data = d;
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved && findEmployee(saved)) { showApp(saved); }
+  })
+  .catch(() => { document.getElementById('err').style.display = 'block'; });
+
+function findEmployee(pin){
+  return (data.employees || []).find(e => String(e.pin) === String(pin));
+}
+
+function tryLogin(){
+  const pin = document.getElementById('pin').value.trim();
+  if(!data){ document.getElementById('loginErr').textContent = 'Plan lädt noch, bitte kurz warten.'; return; }
+  const emp = findEmployee(pin);
+  if(!emp){ document.getElementById('loginErr').textContent = 'PIN nicht erkannt.'; return; }
+  localStorage.setItem(LS_KEY, pin);
+  showApp(pin);
+}
+
+function logout(){
+  localStorage.removeItem(LS_KEY);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login').style.display = 'flex';
+  document.getElementById('pin').value = '';
+}
+
+function showApp(pin){
+  const emp = findEmployee(pin);
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('companyName').textContent = data.company || 'Dienstplan';
+  document.getElementById('whoAmI').textContent = 'Angemeldet als ' + emp.name;
+  weekIdx = 0; dayIdx = 0;
+  renderWeek();
+}
+
+function renderWeek(){
+  const weeks = data.weeks || [];
+  const week = weeks[weekIdx];
+  document.getElementById('prevWeek').disabled = weekIdx <= 0;
+  document.getElementById('nextWeek').disabled = weekIdx >= weeks.length - 1;
+  document.getElementById('weekLabel').textContent = week ? week.label : '–';
+
+  const tabsEl = document.getElementById('daytabs');
+  tabsEl.innerHTML = '';
+  (week ? week.days : []).forEach((d, i) => {
+    const b = document.createElement('button');
+    b.textContent = d.label;
+    b.className = i === dayIdx ? 'active' : '';
+    b.onclick = () => { dayIdx = i; renderWeek(); };
+    tabsEl.appendChild(b);
+  });
+  renderDay();
+}
+
+function changeWeek(delta){
+  const weeks = data.weeks || [];
+  const n = weekIdx + delta;
+  if(n < 0 || n >= weeks.length) return;
+  weekIdx = n; dayIdx = 0;
+  renderWeek();
+}
+
+function renderDay(){
+  const week = (data.weeks || [])[weekIdx];
+  const day = week ? week.days[dayIdx] : null;
+  const el = document.getElementById('dayContent');
+  if(!day){ el.innerHTML = ''; return; }
+  const shiftsByEmp = day.shifts || {};
+  el.innerHTML = (data.employees || []).map(emp => {
+    const list = shiftsByEmp[emp.id];
+    if(!list || !list.length){
+      return '<div class="emp-card free"><div class="name">' + esc(emp.name) + '</div><div class="shift">frei</div></div>';
+    }
+    const txt = list.map(s => '<b>' + esc(s.start) + '–' + esc(s.end) + '</b>' + (s.bereich ? '<span class="tag-area">' + esc(s.bereich) + '</span>' : '')).join('<br>');
+    return '<div class="emp-card"><div class="name">' + esc(emp.name) + '</div><div class="shift">' + txt + '</div></div>';
+  }).join('');
+}
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+document.getElementById('pin').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
+</script>
+</body>
+</html>
